@@ -47,6 +47,7 @@ class RegexSensitiveDataMatcher extends SensitiveDataMatcher {
   static final List<SensitivePattern> defaultPatterns = <SensitivePattern>[
     SensitivePattern(
       RegExp(
+        // Common password patterns (e.g., "password: secret", "pwd=secret")
         r'''["']?(?:password|passwd|pwd|passcode)["']?\s*[:=]\s*["']?([^\s,;"'&]+)["']?''',
         caseSensitive: false,
       ),
@@ -54,6 +55,7 @@ class RegexSensitiveDataMatcher extends SensitiveDataMatcher {
     ),
     SensitivePattern(
       RegExp(
+        // Bearer token pattern (e.g., "Authorization: Bearer <token>")
         r'''["']?authorization["']?\s*[:=]\s*["']?(?:bearer|token)\s+["']?([^\s,;"'&]+)["']?''',
         caseSensitive: false,
       ),
@@ -61,6 +63,7 @@ class RegexSensitiveDataMatcher extends SensitiveDataMatcher {
     ),
     SensitivePattern(
       RegExp(
+        // Basic auth pattern (e.g., "Authorization : Basic <credentials>")
         r'''["']?authorization["']?\s*[:=]\s*["']?basic\s+["']?([^\s,;"'&]+)["']?''',
         caseSensitive: false,
       ),
@@ -68,6 +71,7 @@ class RegexSensitiveDataMatcher extends SensitiveDataMatcher {
     ),
     SensitivePattern(
       RegExp(
+        // Common token patterns (e.g., "token: secret", "auth_token=secret")
         r'''["']?(?:token|auth[\s_-]*token|access[\s_-]*token|'''
         r'''refresh[\s_-]*token|id[\s_-]*token|session[\s_-]*token|jwt)["']?'''
         r'''\s*[:=]\s*["']?([^\s,;"'&]+)["']?''',
@@ -77,6 +81,7 @@ class RegexSensitiveDataMatcher extends SensitiveDataMatcher {
     ),
     SensitivePattern(
       RegExp(
+        // Common API key patterns (e.g., "api_key: secret")
         r'''["']?(?:api[\s_-]*key|x[\s_-]*api[\s_-]*key|'''
         r'''client[\s_-]*secret|client[\s_-]*key|secret[\s_-]*key|'''
         r'''private[\s_-]*key|access[\s_-]*key)["']?'''
@@ -87,6 +92,7 @@ class RegexSensitiveDataMatcher extends SensitiveDataMatcher {
     ),
     SensitivePattern(
       RegExp(
+        // Generic credential pattern (e.g., "credential: secret")
         r'''["']?(?:credential(?:s)?|secret)["']?\s*[:=]\s*["']?([^\s,;"'&]+)["']?''',
         caseSensitive: false,
       ),
@@ -94,14 +100,24 @@ class RegexSensitiveDataMatcher extends SensitiveDataMatcher {
     ),
     SensitivePattern(
       RegExp(
+        // Email address pattern (e.g., "user@example.com")
         r'[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}',
         caseSensitive: false,
       ),
     ),
     SensitivePattern(
       RegExp(
-        r'(?:\+?\d{1,3}[\s.-]?)?(?:\(?\d{2,4}\)?[\s.-]?)?'
-        r'\d{3}[\s.-]?\d{4}',
+        // Phone number pattern (e.g., "+1 (555) 123-4567", "555-123-4567")
+        // r'(?:\+?\d{1,3}[\s.-]?)?(?:\(?\d{2,4}\)?[\s.-]?)?'
+        // r'\d{3}[\s.-]?\d{4}',
+        // Branch 1: international format with + prefix
+        // Branch 2: parenthesized area code like (555)
+        // Branch 3: local number with required separator (e.g. 555-1234)
+        r'(?<!\d)'
+        r'(?:\+\d{1,3}[\s.-]?(?:\(?\d{2,4}\)?[\s.-]?)?\d{3}[\s.-]?\d{4}'
+        r'|\(\d{2,4}\)[\s.-]?\d{3}[\s.-]?\d{4}'
+        r'|\d{3}[\s.-]\d{4})'
+        r'(?!\d)',
         caseSensitive: false,
       ),
     ),

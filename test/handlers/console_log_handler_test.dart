@@ -51,7 +51,7 @@ void main() {
         });
       });
 
-      test('should color line with blue color for WARNING log BDLevel', () {
+      test('should color line with yellow color for WARNING log BDLevel', () {
         const String log = '2021-06-09 14:40:24.863623 WARNING: '
             'Days until death 10 at logged 2021-06-09 14:40:24.859826';
 
@@ -66,7 +66,7 @@ void main() {
         });
       });
 
-      test('should color line with blue color for ERROR log BDLevel', () {
+      test('should color line with red color for ERROR log BDLevel', () {
         const String log = '2021-06-09 14:40:24.863623 ERROR: '
             'Days until death 10 at logged 2021-06-09 14:40:24.859826';
 
@@ -81,7 +81,7 @@ void main() {
         });
       });
 
-      test('should color line with blue color for INFO log BDLevel', () {
+      test('should color line with white color for INFO log BDLevel', () {
         const String log = '2021-06-09 14:40:24.863623 INFO: '
             'Days until death 10 at logged 2021-06-09 14:40:24.859826';
 

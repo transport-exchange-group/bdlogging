@@ -6,12 +6,14 @@ Provide logging functionality with plug-ins log handlers.
 
 ## Getting started
 
-BDLogging delegate come with two out-of-the-box log handler.
+BDLogging comes with four out-of-the-box log handlers.
 
 * ConsoleLogHandler (Log events to the console)
 * FileLogHandler (Log events to one or multiple files)
+* IsolateFileLogHandler (Log events to files in a separate isolate)
+* EncryptedIsolateFileLogHandler (Log events with sensitive data encryption)
 
-You can create your own log handler that cover your need by implementing BDLogHandler.
+You can create your own log handler that covers your needs by implementing BDLogHandler.
 
 You can add as many log handler message with be dispatched to them if meeting the requirement.
 ## Usage
@@ -34,6 +36,45 @@ logger.error('Login failed', Exception('Invalid credentials: password=secret123'
 // ✅ RECOMMENDED: Sanitize error messages
 logger.error('Login failed', Exception('Invalid credentials provided'));
 ```
+
+### Multiple Handlers (Flutter)
+
+In Flutter apps, **shared isolate mode is enabled by default** when using multiple
+`IsolateFileLogHandler` instances. This automatically reduces memory overhead and
+enables cross-isolate logging:
+
+```dart
+void main() {
+  // Shared mode is enabled by default on Flutter - just create your handlers
+  final handler1 = IsolateFileLogHandler(logDir, logNamePrefix: 'app');
+  final handler2 = IsolateFileLogHandler(logDir, logNamePrefix: 'network');
+  final encrypted = EncryptedIsolateFileLogHandler(logDir, encryptor: enc);
+
+  BDLogger()
+    ..addHandler(handler1)
+    ..addHandler(handler2)
+    ..addHandler(encrypted);
+
+  runApp(MyApp());
+}
+```
+
+**Benefits (automatic on Flutter):**
+- **Memory efficient**: 1 shared isolate instead of N dedicated isolates (~2MB saved per handler)
+- **Cross-isolate compatible**: OS-spawned isolates (push notifications, background tasks) automatically discover and use the shared logger
+- **Zero configuration**: Works out of the box
+
+**To disable shared mode** (e.g., for testing or specific use cases):
+```dart
+void main() {
+  BDLogger.configureSharedIsolate(enabled: false);
+  // Now each handler gets its own dedicated isolate
+}
+```
+
+**Note**: Pure Dart CLI apps automatically use dedicated isolate mode (1:1 pattern) since `IsolateNameServer` is unavailable.
+
+**Technical Note - Serialization for Hot Reload Safety**: Inter-isolate communication uses map-based message serialization rather than sending Dart objects directly. This is critical during development: when hot-reload occurs, class definitions in the main isolate change, but the worker isolate's class definitions may not. Sending Dart objects would cause type mismatches and message dispatch failures. By serializing to maps, messages remain compatible across hot-reloads since the protocol is data-driven rather than type-dependent. During runtime, maps are deserialized using fresh type definitions, ensuring stability even when class definitions change.
 
 ### Decrypting encrypted values
 
@@ -75,7 +116,7 @@ Note: BDLogger is a singleton so you can call it anywhere.
 logger.addHandler(new ConsoleLogHandler());
 ```
 
-Note: 
+Note:
 * You can add as many log handler as you want.
 * You can specify the BDLevel of logging messages that your log handler support.
 
@@ -87,7 +128,7 @@ logger.addHandler(new ConsoleLogHandler());
 logger.addHandler(
   new FileLogHandler(
     logNamePrefix: 'example',
-    maxLogSize: 5,
+    maxLogSizeInMb: 5,
     maxFilesCount: 5,
     logFileDirectory: Directory.current,
     supportedLevels: <BDLevel>[BDLevel.error],
@@ -113,3 +154,27 @@ logger.log(params);
 BDLogging the interface LogFormatter can be implemented to define how you would wish logging messages to be formatted.
 
 Note: a Default log formatter is provided.
+
+## Development
+
+### Running Tests
+
+**Note**: This library is compatible with both Flutter and pure Dart applications. However, the test suite requires Flutter's runtime environment to run isolate-based integration tests.
+
+Always use:
+
+```bash
+flutter test
+```
+
+**Do not use** `dart test` - while the library itself works in pure Dart environments, the test suite uses Flutter's `IsolateNameServer` and other Flutter-specific APIs for testing isolate handlers.
+
+### Contributing
+
+Before submitting changes:
+
+1. Format code: `dart format .`
+2. Check for issues: `flutter analyze`
+3. Run tests with coverage: `flutter test --coverage`
+
+See [AGENTS.md](AGENTS.md) for detailed development guidelines.

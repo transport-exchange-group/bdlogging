@@ -1,5 +1,9 @@
+import 'dart:developer' as developer;
+
 import 'package:bdlogging/src/bd_level.dart';
 import 'package:meta/meta.dart';
+
+const String _logName = 'bdlogging';
 
 /// Logging record.
 @immutable
@@ -63,6 +67,46 @@ class BDLogRecord {
         time,
         stackTrace,
         isFatal,
+      );
+
+  /// Serialize this log record to a map.
+  ///
+  /// **Note:** The [error] field is serialized via `toString()`, so the
+  /// original error type is lost during serialization. After deserialization
+  /// with [BDLogRecord.fromMap], the error will be a [String].
+  Map<String, dynamic> toMap() => <String, dynamic>{
+        'level': level.importance,
+        'message': message,
+        'error': error?.toString(),
+        'time': time.toIso8601String(),
+        'stackTrace': stackTrace?.toString(),
+        'isFatal': isFatal,
+      };
+
+  /// Construct a log record from a map.
+  ///
+  /// If the level importance value does not match any known [BDLevel],
+  /// defaults to [BDLevel.debug] and logs a warning.
+  factory BDLogRecord.fromMap(Map<String, dynamic> map) => BDLogRecord(
+        BDLevel.values.firstWhere(
+          (BDLevel lvl) => lvl.importance == map['level'] as int,
+          orElse: () {
+            developer.log(
+              'BDLogRecord.fromMap: unknown level importance '
+              '${map['level']}, defaulting to debug',
+              name: _logName,
+            );
+            return BDLevel.debug;
+          },
+        ),
+        map['message'] as String,
+        error: map['error'],
+        stackTrace: map['stackTrace'] != null
+            ? StackTrace.fromString(map['stackTrace'] as String)
+            : null,
+        isFatal: map['isFatal'] as bool? ?? false,
+        time:
+            map['time'] != null ? DateTime.parse(map['time'] as String) : null,
       );
 
   @override

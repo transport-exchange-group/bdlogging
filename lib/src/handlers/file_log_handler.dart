@@ -6,6 +6,8 @@ import 'package:bdlogging/src/bd_log_formatter.dart';
 import 'package:bdlogging/src/bd_log_record.dart';
 import 'package:bdlogging/src/formatters/default_log_formatter.dart';
 import 'package:collection/collection.dart';
+import 'package:file/file.dart' as file_pkg;
+import 'package:file/local.dart';
 import 'package:meta/meta.dart';
 import 'package:path/path.dart' as path;
 
@@ -53,17 +55,18 @@ class FileLogHandler extends BDCleanableLogHandler {
   /// [maxLogSizeInMb] in MB will be used as the maximum size of each
   /// log file created by the instance of this [FileLogHandler].
   ///
-  /// [maxFilesCount] will be used to deleted old log files.
-  /// If in the [logFileDirectory] there's files with prefix [logNamePrefix]
+  /// [maxFilesCount] will be used to delete old log files.
+  /// If in the [logFileDirectory] there are files with prefix [logNamePrefix]
   /// and the count of files is greater than [maxFilesCount],
   /// older files will be deleted.
   ///
   /// [logFileDirectory] is the directory where log files will be stored.
   ///
-  /// We assume that the [logFileDirectory] provide exist in the file system.
+  /// We assume that the [logFileDirectory] provided exists in the file system.
   ///
   /// [supportedLevels] will be used to discard [BDLogRecord] with
   /// [BDLevel] lower than [supportedLevels].
+  ///
   FileLogHandler({
     required this.logNamePrefix,
     required this.maxLogSizeInMb,
@@ -75,7 +78,9 @@ class FileLogHandler extends BDCleanableLogHandler {
       BDLevel.error,
     ],
     this.logFormatter = const DefaultLogFormatter(),
-  })  : assert(
+    file_pkg.FileSystem? fileSystem,
+  })  : _fileSystem = fileSystem ?? const LocalFileSystem(),
+        assert(
           logNamePrefix.isNotEmpty,
           'logNamePrefix should not be empty',
         ),
@@ -96,8 +101,8 @@ class FileLogHandler extends BDCleanableLogHandler {
 
   /// Maximum count of files to keep.
   ///
-  /// will be used to deleted old log files.
-  /// If in the [logFileDirectory] there's files with prefix [logNamePrefix]
+  /// Will be used to delete old log files.
+  /// If in the [logFileDirectory] there are files with prefix [logNamePrefix]
   /// and the count of files is greater than [maxFilesCount],
   /// older files will be deleted.
   final int maxFilesCount;
@@ -110,6 +115,8 @@ class FileLogHandler extends BDCleanableLogHandler {
 
   /// [BDLogFormatter] that define how [BDLogRecord] should be written.
   final BDLogFormatter logFormatter;
+
+  final file_pkg.FileSystem _fileSystem;
 
   /// The suffix added after the [logNamePrefix] followed by the log file index.
   @visibleForTesting
@@ -241,7 +248,7 @@ class FileLogHandler extends BDCleanableLogHandler {
     final String fileName =
         '$logNamePrefix$logFileNameSuffix$currentLogIndex.log';
 
-    currentLogFile = File(path.join(logDir.path, fileName));
+    currentLogFile = _fileSystem.file(path.join(logDir.path, fileName));
 
     return currentLogFile.openSync(mode: FileMode.writeOnlyAppend);
   }

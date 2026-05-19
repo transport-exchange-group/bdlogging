@@ -6,6 +6,14 @@ import 'package:bdlogging/src/security/sensitive_data_encryptor.dart';
 import 'package:bdlogging/src/security/sensitive_data_matcher.dart';
 import 'package:meta/meta.dart';
 
+/// Function signature for logging operations.
+/// Used for dependency injection to enable testing.
+typedef LogFunction = void Function(
+  String message, {
+  Object? error,
+  StackTrace? stackTrace,
+});
+
 /// Handles encryption failures by returning a replacement string.
 ///
 /// Use this to configure how the [EncryptedIsolateFileLogHandler] behaves
@@ -166,7 +174,6 @@ class EncryptedIsolateFileLogHandler extends IsolateFileLogHandler {
           logNamePrefix: options.fileOptions.logNamePrefix,
           maxLogSizeInMb: options.fileOptions.maxLogSizeInMb,
           supportedLevels: options.fileOptions.supportedLevels,
-          logFunction: options.logFunction,
         );
 
   /// Encryptor responsible for reversible encryption.
@@ -185,6 +192,13 @@ class EncryptedIsolateFileLogHandler extends IsolateFileLogHandler {
     return _queueWrite(() => _processRecord(record));
   }
 
+  /// Performs a two-phase cleanup:
+  ///
+  /// 1. Awaits [_pendingWrite] to ensure all queued encryption operations
+  ///    complete and their results are sent to the worker isolate.
+  /// 2. Disposes the [matcher] to release regex/pattern resources.
+  /// 3. Calls [super.clean] which tells the worker isolate to flush its
+  ///    own write queue and close the underlying file handle.
   @override
   Future<void> clean() async {
     await _pendingWrite;

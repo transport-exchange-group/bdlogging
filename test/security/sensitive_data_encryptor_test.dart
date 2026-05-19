@@ -66,7 +66,7 @@ void main() {
       final SensitiveDataEncryptor encryptor =
           AesGcmSensitiveDataEncryptor('password-123');
       final int count = _readEnvInt('BDLOG_ENCRYPT_LOAD', 100);
-      final int budgetSeconds = _readEnvInt('BDLOG_ENCRYPT_BUDGET', 12);
+      final int budgetSeconds = _readEnvInt('BDLOG_ENCRYPT_BUDGET', 15);
       final Stopwatch stopwatch = Stopwatch()..start();
 
       for (int i = 0; i < count; i++) {

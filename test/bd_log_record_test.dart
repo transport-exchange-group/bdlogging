@@ -145,4 +145,107 @@ void main() {
       expect(record1.hashCode, isNot(equals(record3.hashCode)));
     });
   });
+
+  group('BDLogRecord serialization', () {
+    test('toMap/fromMap round-trip preserves basic fields', () {
+      final DateTime now = DateTime.now();
+      final BDLogRecord record = BDLogRecord(
+        BDLevel.warning,
+        'Warning message',
+        time: now,
+      );
+
+      final Map<String, dynamic> map = record.toMap();
+      final BDLogRecord restored = BDLogRecord.fromMap(map);
+
+      expect(restored.level, equals(BDLevel.warning));
+      expect(restored.message, equals('Warning message'));
+      expect(restored.time, equals(now));
+      expect(restored.error, isNull);
+      expect(restored.stackTrace, isNull);
+      expect(restored.isFatal, isFalse);
+    });
+
+    test('toMap/fromMap preserves error as string', () {
+      final BDLogRecord record = BDLogRecord(
+        BDLevel.error,
+        'Error occurred',
+        error: Exception('test error'),
+        isFatal: true,
+      );
+
+      final Map<String, dynamic> map = record.toMap();
+      final BDLogRecord restored = BDLogRecord.fromMap(map);
+
+      expect(restored.error, isA<String>());
+      expect(restored.error.toString(), contains('test error'));
+      // Note: isFatal requires non-null error, which is preserved
+      expect(restored.isFatal, isTrue);
+    });
+
+    test('toMap/fromMap preserves stackTrace', () {
+      final StackTrace trace = StackTrace.current;
+      final BDLogRecord record = BDLogRecord(
+        BDLevel.debug,
+        'Debug message',
+        stackTrace: trace,
+      );
+
+      final Map<String, dynamic> map = record.toMap();
+      final BDLogRecord restored = BDLogRecord.fromMap(map);
+
+      expect(restored.stackTrace, isNotNull);
+      expect(restored.stackTrace.toString(), equals(trace.toString()));
+    });
+
+    test('toMap/fromMap handles all BDLevel values', () {
+      for (final BDLevel level in BDLevel.values) {
+        final BDLogRecord record = BDLogRecord(level, 'Test $level');
+        final Map<String, dynamic> map = record.toMap();
+        final BDLogRecord restored = BDLogRecord.fromMap(map);
+        expect(restored.level, equals(level));
+      }
+    });
+
+    test('toMap produces expected keys', () {
+      final BDLogRecord record = BDLogRecord(BDLevel.info, 'msg');
+      final Map<String, dynamic> map = record.toMap();
+
+      expect(map.containsKey('level'), isTrue);
+      expect(map.containsKey('message'), isTrue);
+      expect(map.containsKey('time'), isTrue);
+      expect(map.containsKey('error'), isTrue);
+      expect(map.containsKey('stackTrace'), isTrue);
+      expect(map.containsKey('isFatal'), isTrue);
+    });
+
+    test('fromMap with null error and isFatal defaults to false', () {
+      final Map<String, dynamic> map = <String, dynamic>{
+        'level': BDLevel.info.importance,
+        'message': 'test',
+        'error': null,
+        'time': DateTime.now().toIso8601String(),
+        'stackTrace': null,
+        // isFatal omitted
+      };
+
+      final BDLogRecord record = BDLogRecord.fromMap(map);
+      expect(record.isFatal, isFalse);
+    });
+
+    test('fromMap with unknown level importance defaults to debug', () {
+      final Map<String, dynamic> map = <String, dynamic>{
+        'level': 999, // Unknown importance value
+        'message': 'unknown level message',
+        'error': null,
+        'time': DateTime.now().toIso8601String(),
+        'stackTrace': null,
+        'isFatal': false,
+      };
+
+      final BDLogRecord record = BDLogRecord.fromMap(map);
+      expect(record.level, equals(BDLevel.debug));
+      expect(record.message, equals('unknown level message'));
+    });
+  });
 }

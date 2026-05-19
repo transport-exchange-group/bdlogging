@@ -40,7 +40,7 @@ Flexible, performant logging with multiple output destinations.
 |-------|-------------|
 | `BDLogger` | Singleton logger with queue-based batch processing |
 | `BDLogHandler` | Abstract handler interface |
-| `BDCleanableLogHandler` | Extended handler with resource cleanup (`clean()`) |
+| `BDCleanableLogHandler` | Extended handler with resource clean-up (`clean()`) |
 | `BDLogRecord` | Immutable log record data class |
 | `BDLevel` | Enum: debug, info, warning, success, error |
 
@@ -48,18 +48,37 @@ Flexible, performant logging with multiple output destinations.
 
 | Handler | Description |
 |---------|-------------|
-| `ConsoleLogHandler` | Outputs to stdout with ANSI colors |
+| `ConsoleLogHandler` | Outputs to stdout with ANSI colours |
 | `FileLogHandler` | Synchronous file logging with rotation |
-| `IsolateFileLogHandler` | Async file logging via isolates (non-blocking) |
+| `IsolateFileLogHandler` | Async file logging via isolates (supports shared mode) |
+| `EncryptedIsolateFileLogHandler` | Encrypted async file logging (extends IsolateFileLogHandler) |
+
+### Isolate Architecture (v2.0+)
+
+**Coordination Layer Pattern**: Platform-specific worker management via conditional imports:
+
+| Mode | When Used | Implementation |
+|------|-----------|----------------|
+| **Dedicated** | Dart CLI, or Flutter with `BDLogger.configureSharedIsolate(enabled: false)` | `isolate_coordination_stub.dart` - each handler spawns own isolate (1:1) |
+| **Shared** | Flutter (default) | `isolate_coordination_flutter.dart` - multiple handlers share single worker via `IsolateNameServer` |
+
+**Key Features**:
+- **Automatic discovery**: OS-spawned isolates (push notifications, background tasks) find shared worker via `IsolateNameServer`
+- **Reference counting**: Worker exits when last handler cleans up
+- **Handler routing**: ID-based message routing to correct FileLogHandler instance
+- **Sequential processing**: Per-handler queues prevent concurrent file writes
+- **Health checking**: Stale registration detection with automatic recovery
 
 ### Design Patterns
 
 | Pattern | Usage |
 |---------|-------|
-| **Singleton** | `BDLogger` - single instance across app |
-| **Producer-Consumer** | Queue-based log batching |
-| **Actor Model** | `IsolateFileLogHandler` uses isolates for async I/O |
+| **Singleton** | `BDLogger` - single instance per isolate |
+| **Producer-Consumer** | Queue-based log batching in `BDLogger` |
+| **Actor Model** | Worker isolates process logs asynchronously |
 | **Strategy** | Handler implementations are interchangeable |
+| **Coordination** | Platform-specific isolate management via conditional imports |
+| **Message Routing** | Map-serialized protocol classes for hot-reload-safe cross-isolate communication |
 
 ---
 
@@ -77,6 +96,8 @@ Execute in order:
 1. `dart format .`
 2. `flutter analyze`
 3. `flutter test --coverage`
+
+**Important**: Always use `flutter test`, not `dart test`. This package requires Flutter's runtime environment for isolate-based handlers and integration tests.
 
 ### Complexity Limits
 

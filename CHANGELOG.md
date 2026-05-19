@@ -1,3 +1,60 @@
+## 2.0.0 - BREAKING CHANGES
+
+**Major refactoring of isolate architecture with optional shared isolate support**
+
+### Breaking Changes
+
+* **Removed internal testing methods** from `IsolateFileLogHandler`:
+  - `sendPortCompleterForTesting`, `cleanCompleterForTesting`, `cleanStateForTesting` (getters/setters)
+  - `handlePortMessage()`, `handleErrorPortMessage()`, `handlePortError()`, `handlePortDone()` methods
+  - `cleanCompletedMessage` constant
+
+* **`LogFunction` typedef** moved from `isolate_file_log_handler.dart` to `encrypted_isolate_file_log_handler.dart` (still exported via `package:bdlogging/bdlogging.dart`)
+
+### New Features
+
+* **Shared Isolate Mode (Flutter)**: Enabled by default — multiple handler instances share a single worker isolate, reducing memory overhead. OS-spawned isolates (push notifications, background tasks) automatically discover the shared worker.
+  - Disable with `BDLogger.configureSharedIsolate(enabled: false)` if needed
+
+* **File Path Coalescing**: Multiple handlers targeting the same log file share a single write queue, preventing file contention regardless of how many isolates are logging.
+
+* **Hot-Reload Safe**: Inter-isolate communication survives hot-reload without type mismatches.
+
+* **Testing Getters**: `handlerIdForTesting`, `isSharedModeForTesting` for test inspection.
+
+### Bug Fixes
+
+* Stale worker detection and automatic recovery via health checks
+* Sequential write queues prevent concurrent file write races
+* Graceful record dropping when worker initialization fails
+* Unknown log level deserialization defaults to `BDLevel.debug` instead of crashing
+* Improved clean-up timeout handling (10-second timeout with graceful error)
+
+### Improvements
+
+* Uses `dart:developer` log consistently instead of `print` for diagnostic output
+* `FileLogHandler` accepts an optional `FileSystem` parameter for testability
+
+### Dependencies
+
+* Added `file: ^7.0.0` for filesystem abstraction
+
+### Migration Guide
+
+**If you use only the public API**, no changes needed.
+
+**If tests reference removed internal methods**, update to test observable behaviour using the new testing getters.
+
+**Shared mode** is enabled by default on Flutter. To disable:
+```dart
+void main() {
+  BDLogger.configureSharedIsolate(enabled: false);
+  runApp(MyApp());
+}
+```
+
+---
+
 ## 1.4.1
 
 * Enhanced sensitive data encryption with improved patterns for Authorization Bearer/Basic and token/API key variants, including case-insensitive, whitespace-tolerant, quote-excluding regex with query string & delimiters
