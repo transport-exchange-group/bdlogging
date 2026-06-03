@@ -7,7 +7,6 @@ import 'dart:isolate';
 import 'dart:ui' show IsolateNameServer;
 
 import 'package:bdlogging/src/handlers/file_log_handler.dart';
-import 'package:bdlogging/src/handlers/isolate_file_log_handler.dart';
 import 'package:bdlogging/src/handlers/isolate_message_protocol.dart';
 import 'package:bdlogging/src/handlers/isolate_worker_common.dart'
     as worker_common;
@@ -41,7 +40,7 @@ const String _healthCheckOk = 'health_check_ok';
 
 /// Tracks an in-flight worker resolution within this isolate.
 ///
-/// When multiple [IsolateFileLogHandler] instances initialize concurrently,
+/// When multiple `IsolateFileLogHandler` instances initialize concurrently,
 /// only the first triggers the spawn/lookup cycle. Others await its result.
 /// Once completed, subsequent handler creations perform their own resolution
 /// (which typically just health-checks the existing worker).

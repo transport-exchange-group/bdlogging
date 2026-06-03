@@ -248,7 +248,8 @@ class FileLogHandler extends BDCleanableLogHandler {
     final String fileName =
         '$logNamePrefix$logFileNameSuffix$currentLogIndex.log';
 
-    currentLogFile = _fileSystem.file(path.join(logDir.path, fileName));
+    currentLogFile =
+        _fileSystem.file(_fileSystem.path.join(logDir.path, fileName));
 
     return currentLogFile.openSync(mode: FileMode.writeOnlyAppend);
   }
