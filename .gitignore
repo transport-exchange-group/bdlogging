@@ -27,4 +27,5 @@
 .dart_tool/
 .packages
 build/
+coverage/
 /.claude/settings.json

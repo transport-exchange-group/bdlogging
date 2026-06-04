@@ -1,4 +1,4 @@
-/// An Logging Level of importance of a log message.
+/// A Logging Level of importance of a log message.
 enum BDLevel implements Comparable<BDLevel> {
   /// DEBUG logging level for debugging messages.
   debug('DEBUG', 3),

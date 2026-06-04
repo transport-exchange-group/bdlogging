@@ -2,6 +2,7 @@ library bdlogging;
 
 import 'dart:async';
 import 'dart:collection';
+import 'dart:developer' as developer;
 import 'dart:math';
 
 import 'package:bdlogging/src/bd_cleanable_log_handler.dart';
@@ -9,6 +10,9 @@ import 'package:bdlogging/src/bd_level.dart';
 import 'package:bdlogging/src/bd_log_error.dart';
 import 'package:bdlogging/src/bd_log_handler.dart';
 import 'package:bdlogging/src/bd_log_record.dart';
+import 'package:bdlogging/src/handlers/isolate_coordination_stub.dart'
+    if (dart.library.ui) 'package:bdlogging/src/handlers/isolate_coordination_flutter.dart'
+    as coordination;
 import 'package:meta/meta.dart';
 
 export 'src/bd_cleanable_log_handler.dart';
@@ -25,6 +29,8 @@ export 'src/handlers/isolate_file_log_handler.dart';
 export 'src/security/sensitive_data_encryptor.dart';
 export 'src/security/sensitive_data_matcher.dart';
 
+const String _logName = 'bdlogging';
+
 /// `BDLogger` is a singleton class used for logging in Dart/Flutter applications.
 ///
 /// It provides methods to log messages
@@ -33,7 +39,7 @@ export 'src/security/sensitive_data_matcher.dart';
 /// It supports multiple log handlers to handle log records
 /// in different ways (e.g., writing to a file, sending to a server).
 ///
-/// The processing interval and chunk size can be changed dynamically,
+/// The batch size can be changed dynamically,
 /// allowing developers to adjust the logger's performance at runtime.
 ///
 /// The class provides a stream of `BDLogError` that occurred during logging,
@@ -66,6 +72,24 @@ export 'src/security/sensitive_data_matcher.dart';
 class BDLogger {
   static BDLogger? _instance;
 
+  /// Whether shared isolate mode is enabled for IsolateFileLogHandler.
+  ///
+  /// Defaults to true on Flutter (where IsolateNameServer is available)
+  /// and false on Dart CLI. Can be overridden via [configureSharedIsolate].
+  static bool _useSharedIsolate = coordination.isSharedAvailable;
+
+  /// Whether shared isolate mode is available on this platform.
+  ///
+  /// Shared mode requires Flutter (IsolateNameServer from dart:ui).
+  /// On pure Dart CLI, this is always false.
+  static const bool _sharedIsolateAvailable = coordination.isSharedAvailable;
+
+  /// Whether any IsolateFileLogHandler has been created.
+  ///
+  /// Used to warn if [configureSharedIsolate] is called after handlers
+  /// have already captured the mode setting.
+  static bool _handlersCreated = false;
+
   /// The default number of log records that are processed at a time.
   static const int defaultProcessingBatchSize = 100;
 
@@ -75,6 +99,70 @@ class BDLogger {
       <BDLogHandler>{},
       StreamController<BDLogError>.broadcast(),
     );
+  }
+
+  /// Configures whether IsolateFileLogHandler uses shared isolate mode.
+  ///
+  /// When [enabled] is true and running on Flutter, multiple
+  /// IsolateFileLogHandler instances will share a single worker isolate,
+  /// reducing memory overhead. This is particularly useful for apps with
+  /// multiple log handlers or OS-spawned isolates (push notifications,
+  /// background tasks) that need to discover the logger automatically.
+  ///
+  /// On pure Dart CLI, shared mode is unavailable (requires Flutter's
+  /// IsolateNameServer). The logger will fall back to dedicated isolate
+  /// mode (1:1 pattern) and log a warning.
+  ///
+  /// **Important**: Call this before creating any `IsolateFileLogHandler`
+  /// instances. If called after handlers exist, a warning is logged and
+  /// only newly-created handlers will use the updated setting.
+  ///
+  /// ```dart
+  /// void main() {
+  ///   BDLogger.configureSharedIsolate(enabled: true);
+  ///   final handler = IsolateFileLogHandler(...);
+  ///   BDLogger().addHandler(handler);
+  /// }
+  /// ```
+  static void configureSharedIsolate({required bool enabled}) {
+    if (enabled && !_sharedIsolateAvailable) {
+      // Log warning but don't throw - graceful degradation
+      developer.log(
+        'BDLogger: Shared isolate mode unavailable (requires Flutter), '
+        'using dedicated isolate pattern',
+        name: _logName,
+      );
+    }
+    if (_handlersCreated) {
+      developer.log(
+        'BDLogger: configureSharedIsolate() called after handlers were '
+        'already created. Existing handlers retain their original mode; '
+        'only new handlers will use the updated setting.',
+        name: _logName,
+      );
+    }
+    _useSharedIsolate = enabled && _sharedIsolateAvailable;
+  }
+
+  /// Returns whether shared isolate mode is currently enabled.
+  ///
+  /// This is used internally by `IsolateFileLogHandler` to determine
+  /// whether to use shared or dedicated isolate mode.
+  static bool get isSharedModeEnabled => _useSharedIsolate;
+
+  /// Marks that at least one `IsolateFileLogHandler` has been created.
+  ///
+  /// Called by handlers during construction so that late calls to
+  /// [configureSharedIsolate] can produce a warning.
+  static void markHandlerCreated() {
+    _handlersCreated = true;
+  }
+
+  /// Resets the shared isolate configuration state for testing.
+  @visibleForTesting
+  static void resetSharedIsolateConfigForTesting() {
+    _useSharedIsolate = coordination.isSharedAvailable;
+    _handlersCreated = false;
   }
 
   /// Private constructor used to create the singleton instance of the class.
